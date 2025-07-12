@@ -1,10 +1,10 @@
 clc,clear
-load data_for_class_seg3.mat
+load data_for_class_seg3.mat % 整理后的data
 y = y_raw;
 x = x_raw;
 x =x';
 
-y(y==31)=1;
+y(y==31)=1; %标签简化
 y(y==32)=2;
 x = x';
 
