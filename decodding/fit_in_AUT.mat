@@ -1,0 +1,53 @@
+%将所有模型拟合至AUT
+clc,clear
+load all_weight_power_new
+inputroot1 ='E:\ECNU\exp3eeg\datas\aut\';
+files= dir(fullfile(inputroot1,'/*.mat'));%所有的AUT数据，已经分段好
+saveroot = 'E:\ECNU\exp3eeg\datas\autpred\';
+x = 1;
+n = 1;
+j = 1;
+h = waitbar(i/100, ['subj: ',num2str(x),'; trial:',num2str(n),'; model:', num2str(i)]);
+for x = 1:length(files)
+    try
+        load([inputroot1,files(x).name])
+        all_pre = {};
+        for n = 1:40
+            predictions =[];
+            pre =[];
+            data = [];
+            try
+                for j = 1:length(data_aut{n,1})
+                    if isempty(data_aut{n,1}{1,j})==0
+                        data(j,:) = data_aut{n,1}{1,j};
+                    else
+                        data(j,:) = zeros(1,180);
+                    end
+                end
+                for i = 1:100
+                    mod = all_mod{i,1};
+                    preds = predict(mod,data);
+                    preds(data(:,1)==0)=0;
+                    predictions(:,i) = preds;
+                    waitbar(i/100,h, ['subj: ',num2str(x),'; trial:',num2str(n),'; model:', num2str(i)]);
+                end
+
+
+                predictions = predictions-1;
+                pre = sum(predictions,2);
+                for m = 1:length(pre)
+                    if pre(m,1)<51 && pre(m,1)>=1
+                        pre(m,2) = 1;
+                    elseif pre(m,1)>50
+                        pre(m,2) = 2;
+                    end
+                end
+                all_pre{n,1} = pre;
+                disp(['tiral ',num2str(n)])
+
+            end
+        end
+        save([saveroot,files(x).name],'all_pre')
+        disp(['prediction of ',files(x).name,' done'])
+    end
+end
