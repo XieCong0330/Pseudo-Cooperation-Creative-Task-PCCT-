@@ -1,0 +1,62 @@
+clc,clear
+load data_for_class_seg3.mat
+y = y_raw;
+x = x_raw;
+x =x';
+
+y(y==31)=1;
+y(y==32)=2;
+x = x';
+
+
+j = 1;
+p = 1;
+k = 1;
+n = 1;
+h = waitbar(j/100, strcat('iteration: ',num2str(k),'; model: ',num2str(j),'acc_train: ',num2str(0),'; acc_test: ',num2str(0), '; sig: ',num2str(p)));
+% [coeff, score, latent, ~, explained] = pca(x');
+% cumulative_variance = cumsum(explained);
+% k = find(cumulative_variance >= 80, 1);
+% X_pca = score(:,1:k);
+% x = X_pca';
+while j<100
+    [x_test,x_train,y_test,y_train] = sample_xc(x',y,100);
+    while p>0.05
+        cv = cvpartition(y_train, 'KFold', 10);
+        optimalModel = fitcensemble(x_train, y_train, 'OptimizeHyperparameters', 'auto', 'HyperparameterOptimizationOptions',...
+            struct('Optimizer', 'bayesopt', 'CVPartition', cv,'ShowPlots',false,'UseParallel',true));
+        acc1 = calc_acc(optimalModel,x_train, y_train);
+
+        if acc1 >0.65%这个值为经验值，二分类一般大于这么多置换检验会显著，不进行额外的置换检验，减少计算量
+            acc = calc_acc(optimalModel,x_test,y_test);
+            if acc > 0.8%这个值为经验值，二分类一般小于这么多置换检验会不显著，不进行额外的置换检验，减少计算量
+                p = permu_acc(optimalModel,x_test,y_test,1000,acc);
+            else
+                p = 1;
+            end
+        else
+            acc = 0;
+        end
+        all_p(j,1)=p;%所有验证集进行置换检验的p值
+        all_acc(j,1) = acc;%所有验证集正确率
+        all_acc1(j,1) = acc1;%所有测试集正确率
+        all_mod{j,1} = optimalModel;%所有模型
+        if isempty(predictorImportance(optimalModel))==0
+            all_weight(j,:) =  predictorImportance(optimalModel);%所有模型各个预测变量的权重
+        end
+        waitbar(j/100, h, strcat('iteration: ',num2str(n),'; model: ',num2str(j),'acc_train: ',num2str(acc1),'; acc: ',num2str(acc), '; sig: ',num2str(p)));
+        k = k+1;
+        if k>1
+            break
+        end
+    end
+    if p >0.05
+        j = j;
+    else
+        j = j+1;
+    end
+    p = 1;
+    k = 1;
+    n = n+1;
+    save('all_weight_powern1','all_p','all_acc','all_weight','all_acc1','all_mod')
+end
